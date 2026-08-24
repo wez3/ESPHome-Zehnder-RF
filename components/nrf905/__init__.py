@@ -1,7 +1,7 @@
 import esphome.codegen as cg
 import esphome.config_validation as cv
 from esphome import pins
-from esphome.components import fan, spi
+from esphome.components import spi
 from esphome.const import CONF_ID
 
 CONF_AM_PIN = "am_pin"

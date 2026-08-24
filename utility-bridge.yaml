@@ -17,19 +17,21 @@ logger:
 
 # Enable Home Assistant API
 api:
-  password: !secret esphome_utility_bridge_api_password
+  encryption:
+    key: !secret esphome_utility_bridge_api_key
 
-  services:
-    - service: set_speed
+  actions:
+    - action: set_speed
       variables:
         run_speed: int
         run_time: int
       then:
         - lambda: |-
-            zehnder_fan->setSpeed(run_speed, run_time);
+            id(zehnder_fan)->setSpeed(run_speed, run_time);
 
 ota:
-  password: !secret esphome_utility_bridge_ota_password
+  - platform: esphome
+    password: !secret esphome_utility_bridge_ota_password
 
 wifi:
   ssid: !secret wifi_ssid
@@ -64,7 +66,7 @@ button:
     on_press:
       then:
         lambda: |-
-          zehnder_fan->setSpeed(3, 10);
+          id(zehnder_fan)->setSpeed(3, 10);
 
   - platform: template
     id: ${devicename}_high_30
@@ -72,12 +74,17 @@ button:
     on_press:
       then:
         lambda: |-
-          zehnder_fan->setSpeed(3, 30);
+          id(zehnder_fan)->setSpeed(3, 30);
 
 # Load external components
 # https://esphome.io/components/external_components.html#external-components-git
 external_components:
-  - source: github://Sanderhuisman/ESPHome-Zehnder-RF
+  # Use the components next to this YAML file (for local development)
+  - source:
+      type: local
+      path: components
+  # ...or pull them straight from GitHub:
+  # - source: github://Sanderhuisman/ESPHome-Zehnder-RF
 
 # SPI
 spi:
