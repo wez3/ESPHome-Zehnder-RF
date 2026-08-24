@@ -5,7 +5,6 @@
 #include "esphome/core/hal.h"
 #include "esphome/core/helpers.h"
 #include "esphome/components/spi/spi.h"
-#include "nRF905.h"
 
 namespace esphome {
 namespace nrf905 {
