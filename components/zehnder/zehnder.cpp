@@ -58,6 +58,16 @@ typedef struct __attribute__((packed)) {
 
 ZehnderRF::ZehnderRF(void) {}
 
+void ZehnderRF::set_static_pairing(const uint32_t network_id, const uint8_t device_type, const uint8_t device_id,
+                                   const uint8_t main_unit_type, const uint8_t main_unit_id) {
+  this->static_config_.fan_networkId = network_id;
+  this->static_config_.fan_my_device_type = device_type;
+  this->static_config_.fan_my_device_id = device_id;
+  this->static_config_.fan_main_unit_type = main_unit_type;
+  this->static_config_.fan_main_unit_id = main_unit_id;
+  this->has_static_config_ = true;
+}
+
 fan::FanTraits ZehnderRF::get_traits() { return fan::FanTraits(false, true, false, this->speed_count_); }
 
 void ZehnderRF::control(const fan::FanCall &call) {
@@ -97,8 +107,18 @@ void ZehnderRF::setup() {
     ESP_LOGD(TAG, "Config load ok");
   }
 
+  if (this->has_static_config_) {
+    // Pairing came from the configuration, so ignore whatever was stored and never
+    // run discovery: loop() will see a valid config and go straight to polling.
+    ESP_LOGCONFIG(TAG, "Using pairing from configuration, skipping discovery");
+    this->config_ = this->static_config_;
+  }
+
   // Set nRF905 config
   nrf905::Config rfConfig;
+  // nRF905 sets up at AFTER_CONNECTION priority, which is *after* this DATA-priority
+  // component, so the SPI device is not ready yet. Initialise it before we talk to it.
+  this->rf_->spi_setup();
   rfConfig = this->rf_->getConfig();
 
   rfConfig.band = true;
@@ -157,6 +177,7 @@ void ZehnderRF::dump_config(void) {
   ESP_LOGCONFIG(TAG, "  Fan my device id   0x%02X", this->config_.fan_my_device_id);
   ESP_LOGCONFIG(TAG, "  Fan main_unit type 0x%02X", this->config_.fan_main_unit_type);
   ESP_LOGCONFIG(TAG, "  Fan main unit id   0x%02X", this->config_.fan_main_unit_id);
+  ESP_LOGCONFIG(TAG, "  Pairing            %s", this->has_static_config_ ? "configured" : "discovered");
 }
 
 void ZehnderRF::loop(void) {

@@ -67,6 +67,11 @@ class ZehnderRF : public Component, public fan::Fan {
 
   void set_update_interval(const uint32_t interval) { interval_ = interval; }
 
+  // Use a pairing supplied through the YAML configuration instead of discovering
+  // the fan over RF. Overrides anything previously stored in flash.
+  void set_static_pairing(const uint32_t network_id, const uint8_t device_type, const uint8_t device_id,
+                          const uint8_t main_unit_type, const uint8_t main_unit_id);
+
   void dump_config() override;
 
   fan::FanTraits get_traits() override;
@@ -124,6 +129,8 @@ class ZehnderRF : public Component, public fan::Fan {
     uint8_t fan_main_unit_id;    // Fan (Zehnder/BUVA) main unit ID
   } Config;
   Config config_;
+  Config static_config_{};
+  bool has_static_config_{false};
 
   uint32_t lastFanQuery_{0};
   std::function<void(void)> onReceiveTimeout_ = NULL;

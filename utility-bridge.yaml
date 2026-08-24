@@ -111,3 +111,13 @@ fan:
     name: "Ventilation"
     nrf905: nrf905_rf
     update_interval: "60s"
+    # Optional: skip RF pairing and use a known-good pairing directly.
+    # Set all three of network_id / main_unit_id / device_id together, or none
+    # of them to let the component discover the fan over RF instead. The values
+    # are printed by the discovery log line:
+    #   "Discovery: Found unit type 0x01 (Main) with ID 0xD1 on network 0x4303E1C5"
+    # network_id: 0x4303E1C5     # the fan's network
+    # main_unit_id: 0xD1         # the fan's device ID
+    # main_unit_type: 0x01       # default 0x01 (main unit)
+    # device_id: 0x43            # the ID this component announces itself as
+    # device_type: 0x03          # default 0x03 (remote control)
