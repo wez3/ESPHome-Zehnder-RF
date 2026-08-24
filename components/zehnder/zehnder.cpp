@@ -291,8 +291,11 @@ void ZehnderRF::rfHandleReceived(const uint8_t *const pData, const uint8_t dataL
           break;
 
         default:
-          ESP_LOGD(TAG, "Discovery: Received unknown frame type 0x%02X from ID 0x%02X", pResponse->command,
-                   pResponse->tx_id);
+          ESP_LOGD(TAG,
+                   "Discovery: Received unknown frame type 0x%02X from ID 0x%02X type 0x%02X, addressed to "
+                   "ID 0x%02X type 0x%02X",
+                   pResponse->command, pResponse->tx_id, pResponse->tx_type, pResponse->rx_id,
+                   pResponse->rx_type);
           break;
       }
       break;
@@ -301,6 +304,9 @@ void ZehnderRF::rfHandleReceived(const uint8_t *const pData, const uint8_t dataL
       ESP_LOGD(TAG, "DiscoverStateWaitForJoinResponse");
       switch (pResponse->command) {
         case FAN_FRAME_0B:
+        // Not every main unit acknowledges the join with 0x0B; some answer with their
+        // fan settings instead. The address check below still decides if it is for us.
+        case FAN_TYPE_FAN_SETTINGS:
           if ((pResponse->rx_type == this->config_.fan_my_device_type) &&
               (pResponse->rx_id == this->config_.fan_my_device_id) &&
               (pResponse->tx_type == this->config_.fan_main_unit_type) &&
@@ -334,8 +340,11 @@ void ZehnderRF::rfHandleReceived(const uint8_t *const pData, const uint8_t dataL
           break;
 
         default:
-          ESP_LOGE(TAG, "Discovery: Received unknown frame type 0x%02X from ID 0x%02X", pResponse->command,
-                   pResponse->tx_id);
+          ESP_LOGE(TAG,
+                   "Discovery: Received unknown frame type 0x%02X from ID 0x%02X type 0x%02X, addressed to "
+                   "ID 0x%02X type 0x%02X",
+                   pResponse->command, pResponse->tx_id, pResponse->tx_type, pResponse->rx_id,
+                   pResponse->rx_type);
           break;
       }
       break;
@@ -393,8 +402,11 @@ void ZehnderRF::rfHandleReceived(const uint8_t *const pData, const uint8_t dataL
             break;
         }
       } else {
-        ESP_LOGD(TAG, "Received frame from unknown device; type 0x%02X from ID 0x%02X type 0x%02X", pResponse->command,
-                 pResponse->tx_id, pResponse->tx_type);
+        ESP_LOGD(TAG,
+                 "Received frame from unknown device; type 0x%02X from ID 0x%02X type 0x%02X, addressed to ID "
+                 "0x%02X type 0x%02X (we are ID 0x%02X type 0x%02X)",
+                 pResponse->command, pResponse->tx_id, pResponse->tx_type, pResponse->rx_id, pResponse->rx_type,
+                 this->config_.fan_my_device_id, this->config_.fan_my_device_type);
       }
       break;
 
@@ -442,8 +454,11 @@ void ZehnderRF::rfHandleReceived(const uint8_t *const pData, const uint8_t dataL
             break;
         }
       } else {
-        ESP_LOGD(TAG, "Received frame from unknown device; type 0x%02X from ID 0x%02X type 0x%02X", pResponse->command,
-                 pResponse->tx_id, pResponse->tx_type);
+        ESP_LOGD(TAG,
+                 "Received frame from unknown device; type 0x%02X from ID 0x%02X type 0x%02X, addressed to ID "
+                 "0x%02X type 0x%02X (we are ID 0x%02X type 0x%02X)",
+                 pResponse->command, pResponse->tx_id, pResponse->tx_type, pResponse->rx_id, pResponse->rx_type,
+                 this->config_.fan_my_device_id, this->config_.fan_my_device_type);
       }
       break;
 
