@@ -275,11 +275,9 @@ void ZehnderRF::rfHandleReceived(const uint8_t *const pData, const uint8_t dataL
           this->config_.fan_main_unit_type = pResponse->tx_type;
           this->config_.fan_main_unit_id = pResponse->tx_id;
 
-          // Update address
-          rfConfig = this->rf_->getConfig();
-          rfConfig.rx_address = pResponse->payload.networkJoinOpen.networkId;
-          this->rf_->updateConfig(&rfConfig, NULL);
-          this->rf_->writeTxAddress(pResponse->payload.networkJoinOpen.networkId, NULL);
+          // Stay on the link network to send the join request. The main unit advertises and
+          // listens there while it is pairing, so a request sent on its own network is never
+          // heard. The radio moves over once the join has been acknowledged.
 
           // Send response frame
           this->startTransmit(this->_txFrame, FAN_TX_RETRIES, [this]() {
@@ -303,25 +301,24 @@ void ZehnderRF::rfHandleReceived(const uint8_t *const pData, const uint8_t dataL
     case StateDiscoveryWaitForJoinResponse:
       ESP_LOGD(TAG, "DiscoverStateWaitForJoinResponse");
       switch (pResponse->command) {
-        case FAN_FRAME_0B:
-        // Not every main unit acknowledges the join with 0x0B; some answer with their
-        // fan settings instead. The address check below still decides if it is for us.
-        case FAN_TYPE_FAN_SETTINGS: {
-          // 0x00 acts as a wildcard in the rx fields; the fan uses it when talking to its
-          // other peers too. Honour it only for 0x0B, the unambiguous link-success command:
-          // 0x07 is also broadcast in reply to other devices and would otherwise complete
-          // our join by coincidence.
-          const bool wildcard = pResponse->command == FAN_FRAME_0B;
-          const bool rx_type_ok = (pResponse->rx_type == this->config_.fan_my_device_type) ||
-                                  (wildcard && (pResponse->rx_type == 0x00));
-          const bool rx_id_ok = (pResponse->rx_id == this->config_.fan_my_device_id) ||
-                                (wildcard && (pResponse->rx_id == 0x00));
+        case FAN_FRAME_0B: {
+          // 0x00 acts as a wildcard in the rx fields; the fan uses it when addressing its
+          // other peers, so accept it alongside an exact match on our own type and ID.
+          const bool rx_type_ok =
+              (pResponse->rx_type == this->config_.fan_my_device_type) || (pResponse->rx_type == 0x00);
+          const bool rx_id_ok = (pResponse->rx_id == this->config_.fan_my_device_id) || (pResponse->rx_id == 0x00);
           if (rx_type_ok && rx_id_ok && (pResponse->tx_type == this->config_.fan_main_unit_type) &&
               (pResponse->tx_id == this->config_.fan_main_unit_id)) {
             ESP_LOGD(TAG, "Discovery: Link successful to unit with ID 0x%02X on network 0x%08X", pResponse->tx_id,
                      this->config_.fan_networkId);
 
             this->rfComplete();
+
+            // Joined, so move the radio onto the fan's network for everything that follows.
+            rfConfig = this->rf_->getConfig();
+            rfConfig.rx_address = this->config_.fan_networkId;
+            this->rf_->updateConfig(&rfConfig, NULL);
+            this->rf_->writeTxAddress(this->config_.fan_networkId, NULL);
 
             (void) memset(this->_txFrame, 0, FAN_FRAMESIZE);  // Clear frame data
 
