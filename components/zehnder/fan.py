@@ -13,8 +13,8 @@ ZehnderRF = zehnder_ns.class_("ZehnderRF", cg.Component, fan.Fan)
 
 CONF_NRF905 = "nrf905"
 CONF_NETWORK_ID = "network_id"
-CONF_DEVICE_ID = "device_id"
-CONF_DEVICE_TYPE = "device_type"
+CONF_DEVICE_ID = "my_device_id"
+CONF_DEVICE_TYPE = "my_device_type"
 CONF_MAIN_UNIT_ID = "main_unit_id"
 CONF_MAIN_UNIT_TYPE = "main_unit_type"
 
