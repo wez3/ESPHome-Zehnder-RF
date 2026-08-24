@@ -259,16 +259,17 @@ void ZehnderRF::rfHandleReceived(const uint8_t *const pData, const uint8_t dataL
 
           (void) memset(this->_txFrame, 0, FAN_FRAMESIZE);  // Clear frame data
 
-          // Found a main unit, so send a join request
-          pTxFrame->rx_type = FAN_TYPE_MAIN_UNIT;  // Set type to main unit
-          pTxFrame->rx_id = pResponse->tx_id;      // Set ID to the ID of the main unit
+          // Keep announcing ourselves with 0x0C. The main unit sends the 0x0B link
+          // confirmation on its own once it has seen us often enough; it never answers a
+          // 0x04 join request, which is not part of the linking exchange at all.
+          pTxFrame->rx_type = 0x04;
+          pTxFrame->rx_id = 0x00;
           pTxFrame->tx_type = this->config_.fan_my_device_type;
           pTxFrame->tx_id = this->config_.fan_my_device_id;
           pTxFrame->ttl = FAN_TTL;
-          pTxFrame->command = FAN_NETWORK_JOIN_REQUEST;  // Request to connect to network
-          pTxFrame->parameter_count = sizeof(RfPayloadNetworkJoinOpen);
-          // Request to connect to the received network ID
-          pTxFrame->payload.networkJoinRequest.networkId = pResponse->payload.networkJoinOpen.networkId;
+          pTxFrame->command = FAN_NETWORK_JOIN_ACK;  // 0x0C, available for linking
+          pTxFrame->parameter_count = sizeof(RfPayloadNetworkJoinAck);
+          pTxFrame->payload.networkJoinAck.networkId = NETWORK_LINK_ID;
 
           // Store for later
           this->config_.fan_networkId = pResponse->payload.networkJoinOpen.networkId;
@@ -313,12 +314,6 @@ void ZehnderRF::rfHandleReceived(const uint8_t *const pData, const uint8_t dataL
                      this->config_.fan_networkId);
 
             this->rfComplete();
-
-            // Joined, so move the radio onto the fan's network for everything that follows.
-            rfConfig = this->rf_->getConfig();
-            rfConfig.rx_address = this->config_.fan_networkId;
-            this->rf_->updateConfig(&rfConfig, NULL);
-            this->rf_->writeTxAddress(this->config_.fan_networkId, NULL);
 
             (void) memset(this->_txFrame, 0, FAN_FRAMESIZE);  // Clear frame data
 
@@ -369,6 +364,12 @@ void ZehnderRF::rfHandleReceived(const uint8_t *const pData, const uint8_t dataL
             ESP_LOGD(TAG, "Discovery: received network join success 0x0D");
 
             this->rfComplete();
+
+            // Linked. Everything from here on uses the network the unit handed us.
+            rfConfig = this->rf_->getConfig();
+            rfConfig.rx_address = this->config_.fan_networkId;
+            this->rf_->updateConfig(&rfConfig, NULL);
+            this->rf_->writeTxAddress(this->config_.fan_networkId, NULL);
 
             ESP_LOGD(TAG, "Saving pairing config");
             this->pref_.save(&this->config_);
