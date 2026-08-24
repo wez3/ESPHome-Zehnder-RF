@@ -306,10 +306,17 @@ void ZehnderRF::rfHandleReceived(const uint8_t *const pData, const uint8_t dataL
         case FAN_FRAME_0B:
         // Not every main unit acknowledges the join with 0x0B; some answer with their
         // fan settings instead. The address check below still decides if it is for us.
-        case FAN_TYPE_FAN_SETTINGS:
-          if ((pResponse->rx_type == this->config_.fan_my_device_type) &&
-              (pResponse->rx_id == this->config_.fan_my_device_id) &&
-              (pResponse->tx_type == this->config_.fan_main_unit_type) &&
+        case FAN_TYPE_FAN_SETTINGS: {
+          // 0x00 acts as a wildcard in the rx fields; the fan uses it when talking to its
+          // other peers too. Honour it only for 0x0B, the unambiguous link-success command:
+          // 0x07 is also broadcast in reply to other devices and would otherwise complete
+          // our join by coincidence.
+          const bool wildcard = pResponse->command == FAN_FRAME_0B;
+          const bool rx_type_ok = (pResponse->rx_type == this->config_.fan_my_device_type) ||
+                                  (wildcard && (pResponse->rx_type == 0x00));
+          const bool rx_id_ok = (pResponse->rx_id == this->config_.fan_my_device_id) ||
+                                (wildcard && (pResponse->rx_id == 0x00));
+          if (rx_type_ok && rx_id_ok && (pResponse->tx_type == this->config_.fan_main_unit_type) &&
               (pResponse->tx_id == this->config_.fan_main_unit_id)) {
             ESP_LOGD(TAG, "Discovery: Link successful to unit with ID 0x%02X on network 0x%08X", pResponse->tx_id,
                      this->config_.fan_networkId);
@@ -334,10 +341,15 @@ void ZehnderRF::rfHandleReceived(const uint8_t *const pData, const uint8_t dataL
 
             this->state_ = StateDiscoveryJoinComplete;
           } else {
-            ESP_LOGE(TAG, "Discovery: Received unknown link success from ID 0x%02X on network 0x%08X", pResponse->tx_id,
+            ESP_LOGE(TAG,
+                     "Discovery: Received unknown link success; type 0x%02X from ID 0x%02X type 0x%02X, "
+                     "addressed to ID 0x%02X type 0x%02X (we are ID 0x%02X type 0x%02X) on network 0x%08X",
+                     pResponse->command, pResponse->tx_id, pResponse->tx_type, pResponse->rx_id,
+                     pResponse->rx_type, this->config_.fan_my_device_id, this->config_.fan_my_device_type,
                      this->config_.fan_networkId);
           }
           break;
+        }
 
         default:
           ESP_LOGE(TAG,
